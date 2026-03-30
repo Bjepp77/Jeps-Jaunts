@@ -33,7 +33,7 @@ export function TopNav() {
           href="/events"
           className="font-display italic text-base text-charcoal hover:text-brown-mid transition"
         >
-          Seasonality Planner
+          Fauna
         </Link>
 
         {/* Nav links + sign out */}

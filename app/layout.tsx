@@ -33,7 +33,7 @@ const libreBaskerville = Libre_Baskerville({
 });
 
 export const metadata: Metadata = {
-  title: "Seasonality Planner",
+  title: "Fauna",
   description: "Plan event florals by season",
 };
 

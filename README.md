@@ -1,4 +1,4 @@
-# Seasonality Planner
+# Fauna
 
 A florist-focused event planning tool. Browse a database of flowers filtered by what's in season for your event date, build a flower cart, and export a supplier-ready order sheet.
 
