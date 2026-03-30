@@ -1,4 +1,4 @@
-import type { EventQuote } from "./types"
+import type { EventQuote, QuoteFull } from "./types"
 
 /**
  * Returns the next version number for an event.
@@ -13,9 +13,9 @@ export function nextVersion(existingQuotes: EventQuote[]): number {
  * Finds the quote marked as active, falling back to the highest-version quote.
  */
 export function resolveActiveQuote(
-  quotes: EventQuote[],
+  quotes: QuoteFull[],
   activeQuoteId: string | null,
-): EventQuote | null {
+): QuoteFull | null {
   if (quotes.length === 0) return null
 
   if (activeQuoteId) {

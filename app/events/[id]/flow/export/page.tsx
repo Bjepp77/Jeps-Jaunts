@@ -5,7 +5,7 @@ import { listQuotesForEventAction } from "@/src/lib/quotes/actions/listQuotesFor
 import { resolveActiveQuote, quoteDisplayName } from "@/src/lib/quotes/versioning"
 import { logBillableEvent } from "@/src/lib/billing"
 import { formatCurrency } from "@/src/lib/pricing/format"
-import type { QuoteFull, EventQuoteDocument, EventQuoteLineItem } from "@/src/lib/quotes/types"
+import type { EventQuoteDocument, EventQuoteLineItem } from "@/src/lib/quotes/types"
 import { ExportActions } from "@/src/components/EventFlow/ExportActions"
 
 interface Props {
@@ -34,7 +34,7 @@ export default async function FlowExportPage({ params }: Props) {
   const quotesResult = await listQuotesForEventAction(id)
   const quotes = quotesResult.quotes ?? []
   const activeQuoteId = quotesResult.activeQuoteId ?? null
-  const activeQuote = resolveActiveQuote(quotes, activeQuoteId) as QuoteFull | null
+  const activeQuote = resolveActiveQuote(quotes, activeQuoteId)
 
   if (!activeQuote) {
     return (
