@@ -53,6 +53,10 @@ export async function createEventFromEstimateAction(payload: {
     targetEventId = newEvent.id
   }
 
+  if (!targetEventId) {
+    return { success: false, error: "No event ID available" }
+  }
+
   // Save the quote
   const quoteResult = await createQuoteFromEstimatorAction({
     eventId: targetEventId,

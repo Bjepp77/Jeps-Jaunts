@@ -1,10 +1,10 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, Suspense } from "react"
 import { useSearchParams } from "next/navigation"
 import { supabase } from "@/src/lib/supabase"
 
-export default function LoginPage() {
+function LoginForm() {
   const [email, setEmail] = useState("")
   const [msg, setMsg] = useState("")
   const [sent, setSent] = useState(false)
@@ -74,6 +74,7 @@ export default function LoginPage() {
         <h1 className="text-2xl font-bold text-gray-900 mb-1">Seasonality Planner</h1>
         <p className="text-sm text-gray-500 mb-8">Sign in to plan your events.</p>
 
+
         {sent ? (
           <div className="space-y-4">
             <div className="bg-green-50 border border-green-200 rounded-lg p-4">
@@ -129,5 +130,13 @@ export default function LoginPage() {
         )}
       </div>
     </main>
+  )
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense>
+      <LoginForm />
+    </Suspense>
   )
 }
