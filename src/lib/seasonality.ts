@@ -1,5 +1,7 @@
 import type { Flower, SeasonStatus } from "@/src/types/database"
 
+export type AvailabilityOverride = "available" | "unavailable"
+
 /**
  * Given a flower and an event month (1–12), return its seasonality status.
  */
@@ -7,6 +9,31 @@ export function getSeasonStatus(flower: Flower, eventMonth: number): SeasonStatu
   if (flower.in_season_months.includes(eventMonth)) return "in_season"
   if (flower.shoulder_months?.includes(eventMonth)) return "shoulder"
   return "out_of_season"
+}
+
+/**
+ * Effective season status with override priority chain:
+ *   1. Florist availability overrides (user + flower + region + month)
+ *   2. Region-specific seasonality (region_flower_seasonality)
+ *   3. Base flower data (in_season_months / shoulder_months)
+ */
+export function getEffectiveSeasonStatus(
+  flower: Flower,
+  eventMonth: number,
+  regionSeasonality?: Record<string, SeasonStatus>,
+  overrides?: Record<string, AvailabilityOverride>,
+): SeasonStatus {
+  // 1. User overrides take highest priority
+  const override = overrides?.[flower.id]
+  if (override === "available") return "in_season"
+  if (override === "unavailable") return "out_of_season"
+
+  // 2. Region-specific seasonality
+  const regional = regionSeasonality?.[flower.id]
+  if (regional) return regional
+
+  // 3. Base flower data
+  return getSeasonStatus(flower, eventMonth)
 }
 
 /**

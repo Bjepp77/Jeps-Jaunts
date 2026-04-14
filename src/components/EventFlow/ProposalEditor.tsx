@@ -7,6 +7,13 @@ import { saveProposalTextAction } from "@/src/lib/quotes/actions/saveProposalTex
 import { saveProposalStyleAction } from "@/src/lib/proposals/saveProposalStyleAction"
 import type { ProposalResult } from "@/src/lib/generate-proposal-action"
 
+interface EventClientInfo {
+  floristName: string
+  clientName: string
+  eventDate: string
+  venue: string
+}
+
 interface ProposalEditorProps {
   quote: QuoteFull
   eventId: string
@@ -23,6 +30,8 @@ interface ProposalEditorProps {
   flowersJson: string
   deliverablesJson: string
   eventDate: string
+  eventClientInfo?: EventClientInfo
+  recordProposalTimestamp?: () => Promise<void>
 }
 
 export function ProposalEditor({
@@ -34,12 +43,15 @@ export function ProposalEditor({
   flowersJson,
   deliverablesJson,
   eventDate,
+  eventClientInfo,
+  recordProposalTimestamp,
 }: ProposalEditorProps) {
+  // Pre-fill from initialDoc first, then fall back to event/florist data
   const [client, setClient] = useState<QuoteClientInfo>({
-    floristName: initialDoc?.florist_name ?? "",
-    clientName: initialDoc?.client_name ?? "",
-    eventDate: initialDoc?.event_date_str ?? "",
-    venue: initialDoc?.venue ?? "",
+    floristName: initialDoc?.florist_name || eventClientInfo?.floristName || "",
+    clientName: initialDoc?.client_name || eventClientInfo?.clientName || "",
+    eventDate: initialDoc?.event_date_str || eventClientInfo?.eventDate || "",
+    venue: initialDoc?.venue || eventClientInfo?.venue || "",
   })
   const [body, setBody] = useState(initialDoc?.body ?? "")
   const [aiDraft, setAiDraft] = useState<string | null>(null)
@@ -92,6 +104,10 @@ export function ProposalEditor({
       })
       if (result.success) {
         setSaved(true)
+        // Record proposal_sent timestamp — fire-and-forget
+        if (recordProposalTimestamp) {
+          recordProposalTimestamp().catch(() => {})
+        }
         // Capture style diff — fire-and-forget, never blocks save
         if (aiDraft && aiDraft.trim() !== body.trim()) {
           saveProposalStyleAction({ eventId, aiDraft, floristEdit: body })

@@ -74,7 +74,7 @@ function RecipeRow({ row }: { row: RecipeRow }) {
         className={`text-xs font-body px-3 py-1.5 rounded-md transition ${
           saved
             ? "bg-green-100 text-green-700 border border-green-200"
-            : "bg-charcoal text-bone hover:bg-charcoal/80"
+            : "bg-olive text-bone hover:bg-olive/80"
         } disabled:opacity-50`}
       >
         {isPending ? "…" : saved ? "Saved" : "Save"}

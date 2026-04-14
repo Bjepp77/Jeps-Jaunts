@@ -113,7 +113,7 @@ function AddSupplierForm() {
         <button
           type="submit"
           disabled={isPending}
-          className="text-sm font-body bg-charcoal text-bone px-4 py-1.5 rounded-md hover:bg-charcoal/80 transition disabled:opacity-50"
+          className="text-sm font-body bg-olive text-bone px-4 py-1.5 rounded-md hover:bg-olive/80 transition disabled:opacity-50"
         >
           {isPending ? "Saving…" : "Add Supplier"}
         </button>

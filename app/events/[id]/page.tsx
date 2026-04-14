@@ -42,7 +42,7 @@ export default async function EventDetailPage({ params }: Props) {
           </p>
           <Link
             href="/events"
-            className="inline-block text-xs tracking-widest uppercase font-body bg-charcoal hover:bg-charcoal/80 text-bone px-4 py-2.5 rounded-md transition"
+            className="inline-block text-xs tracking-widest uppercase font-body bg-olive hover:bg-olive/80 text-bone px-4 py-2.5 rounded-md transition"
           >
             Back to your events
           </Link>
@@ -224,18 +224,10 @@ export default async function EventDetailPage({ params }: Props) {
   )
 
   return (
-    <main className="min-h-screen bg-bone">
-      <div className="max-w-6xl mx-auto px-6 py-10">
-
+    <div>
         {/* Header */}
         <div className="mb-8">
-          <Link
-            href="/events"
-            className="text-xs tracking-widest uppercase font-body text-brown-muted hover:text-charcoal transition"
-          >
-            ← Events
-          </Link>
-          <div className="flex items-start justify-between gap-4 mt-4 flex-wrap">
+          <div className="flex items-start justify-between gap-4 flex-wrap">
             <div>
               <div className="flex items-end gap-3 flex-wrap">
                 <h1 className="text-3xl font-display italic text-charcoal">{event.name}</h1>
@@ -249,10 +241,10 @@ export default async function EventDetailPage({ params }: Props) {
             </div>
 
             <Link
-              href={`/events/${id}/flow/recipes`}
-              className="shrink-0 text-xs tracking-widest uppercase font-body bg-charcoal hover:bg-charcoal/80 text-bone px-5 py-2.5 rounded-md transition"
+              href={`/events/${id}/recipes`}
+              className="shrink-0 text-xs tracking-widest uppercase font-body bg-olive hover:bg-olive/80 text-bone px-5 py-2.5 rounded-md transition"
             >
-              Estimate &amp; Price This Event
+              Build Recipes →
             </Link>
           </div>
         </div>
@@ -309,20 +301,19 @@ export default async function EventDetailPage({ params }: Props) {
             {items.length > 0 && (
               <div className="mt-6 pt-6 border-t border-hairline text-center">
                 <p className="text-xs font-body italic text-brown-muted mb-3 leading-relaxed">
-                  Ready to price this event?
+                  Ready to build recipes?
                 </p>
                 <Link
-                  href={`/events/${id}/flow/recipes`}
-                  className="inline-block text-xs tracking-widest uppercase font-body bg-charcoal hover:bg-charcoal/80 text-bone px-5 py-2.5 rounded-md transition"
+                  href={`/events/${id}/recipes`}
+                  className="inline-block text-xs tracking-widest uppercase font-body bg-olive hover:bg-olive/80 text-bone px-5 py-2.5 rounded-md transition"
                 >
-                  Estimate &amp; Price This Event
+                  Build Recipes →
                 </Link>
               </div>
             )}
           </section>
 
         </div>
-      </div>
-    </main>
+    </div>
   )
 }

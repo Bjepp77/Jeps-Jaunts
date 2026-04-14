@@ -24,90 +24,163 @@ export default async function FlowPricePage({ params }: Props) {
     .single()
   if (!event) redirect("/events")
 
-  // ── Cart items with flower data ───────────────────────────────────────────
-  const { data: rawItems, error: itemsError } = await supabase
-    .from("event_items")
-    .select("id, quantity, stems, flower_id, flower:flowers(id, common_name, default_source_location)")
+  // ── Recipe items with flower data ─────────────────────────────────────────
+  const { data: recipeRows } = await supabase
+    .from("recipe_items")
+    .select("deliverable_type, flower_id, stems_per_unit, flower:flowers(id, common_name, default_source_location, stems_per_bunch_default)")
     .eq("event_id", id)
-    .order("created_at")
 
-  console.log("[price/page] event_items:", rawItems?.length ?? 0, "rows", itemsError?.message ?? "ok")
+  // ── Event deliverables with type name (for quantity lookup) ───────────────
+  const { data: deliverableRows } = await supabase
+    .from("event_deliverables")
+    .select("quantity, deliverable_type:deliverable_types(name, display_name)")
+    .eq("event_id", id)
 
-  const cartItems = (rawItems ?? []).map((item) => {
-    const raw = item.flower as unknown
-    const flower = (Array.isArray(raw) ? raw[0] : raw) as {
+  // Build deliverable_type_name → quantity map
+  const deliverableQtyMap = new Map<string, number>()
+  const deliverableDisplayNames: string[] = []
+  for (const row of deliverableRows ?? []) {
+    const raw = row.deliverable_type as unknown
+    const dt = (Array.isArray(raw) ? raw[0] : raw) as { name: string; display_name: string } | null
+    if (dt?.name) {
+      deliverableQtyMap.set(dt.name, row.quantity as number)
+      if ((row.quantity as number) > 0) {
+        deliverableDisplayNames.push(`${row.quantity} ${dt.display_name}`)
+      }
+    }
+  }
+
+  const deliverablesSummary = deliverableDisplayNames.join(", ")
+
+  // ── Aggregate stems per flower from recipes ───────────────────────────────
+  // For each recipe_item: total_stems_contribution = stems_per_unit × deliverable_quantity
+  // Group by flower_id, summing stems
+  const flowerAgg = new Map<string, {
+    flowerId: string
+    flowerName: string
+    sourceLocation: string | null
+    stems: number
+    stemsPerBunchDefault: number
+  }>()
+
+  for (const row of recipeRows ?? []) {
+    const rawFlower = row.flower as unknown
+    const flower = (Array.isArray(rawFlower) ? rawFlower[0] : rawFlower) as {
       id: string
       common_name: string
       default_source_location?: string
+      stems_per_bunch_default?: number
     } | null
-    const stems =
-      typeof item.stems === "number" && item.stems > 0
-        ? item.stems
-        : typeof item.quantity === "number"
-        ? item.quantity
-        : 0
-    return {
-      flowerId: item.flower_id as string,
-      flowerName: flower?.common_name ?? "Unknown",
-      sourceLocation: (flower?.default_source_location as string | undefined) ?? null,
-      stems,
-    }
-  })
 
-  console.log("[price/page] cartItems:", cartItems)
+    const deliverableQty = deliverableQtyMap.get(row.deliverable_type as string) ?? 0
+    const stemsContribution = (row.stems_per_unit as number) * deliverableQty
+    const fid = row.flower_id as string
+
+    const existing = flowerAgg.get(fid)
+    if (existing) {
+      existing.stems += stemsContribution
+    } else {
+      flowerAgg.set(fid, {
+        flowerId: fid,
+        flowerName: flower?.common_name ?? "Unknown",
+        sourceLocation: (flower?.default_source_location as string | undefined) ?? null,
+        stems: stemsContribution,
+        stemsPerBunchDefault: (flower?.stems_per_bunch_default as number) ?? 10,
+      })
+    }
+  }
+
+  // ── Fallback to cart if no recipe_items ────────────────────────────────────
+  let aggregatedItems = Array.from(flowerAgg.values())
+
+  if (aggregatedItems.length === 0) {
+    const { data: rawItems } = await supabase
+      .from("event_items")
+      .select("id, quantity, stems, flower_id, flower:flowers(id, common_name, default_source_location, stems_per_bunch_default)")
+      .eq("event_id", id)
+      .order("created_at")
+
+    aggregatedItems = (rawItems ?? []).map((item) => {
+      const raw = item.flower as unknown
+      const flower = (Array.isArray(raw) ? raw[0] : raw) as {
+        id: string
+        common_name: string
+        default_source_location?: string
+        stems_per_bunch_default?: number
+      } | null
+      const stems =
+        typeof item.stems === "number" && item.stems > 0
+          ? item.stems
+          : typeof item.quantity === "number"
+          ? item.quantity
+          : 0
+      return {
+        flowerId: item.flower_id as string,
+        flowerName: flower?.common_name ?? "Unknown",
+        sourceLocation: (flower?.default_source_location as string | undefined) ?? null,
+        stems,
+        stemsPerBunchDefault: (flower?.stems_per_bunch_default as number) ?? 10,
+      }
+    })
+  }
+
+  const flowerIds = aggregatedItems.map((c) => c.flowerId)
+
+  // ── User bunch overrides ──────────────────────────────────────────────────
+  const stemsPerBunchMap = new Map<string, number>()
+  for (const item of aggregatedItems) {
+    stemsPerBunchMap.set(item.flowerId, item.stemsPerBunchDefault)
+  }
+
+  if (flowerIds.length > 0) {
+    const { data: prefs } = await supabase
+      .from("user_flower_prefs")
+      .select("flower_id, stems_per_bunch_override")
+      .eq("user_id", user.id)
+      .in("flower_id", flowerIds)
+
+    for (const p of prefs ?? []) {
+      stemsPerBunchMap.set(p.flower_id as string, p.stems_per_bunch_override as number)
+    }
+  }
 
   // ── Flower costs ──────────────────────────────────────────────────────────
-  const { data: costRows, error: costsError } = await supabase
+  const { data: costRows } = await supabase
     .from("user_flower_costs")
     .select("flower_id, cost_per_stem")
     .eq("user_id", user.id)
-
-  console.log("[price/page] user_flower_costs:", costRows?.length ?? 0, "rows", costsError?.message ?? "ok")
 
   const costMap = new Map(
     (costRows ?? []).map((r) => [r.flower_id as string, r.cost_per_stem as number])
   )
 
   // ── Pricing settings ──────────────────────────────────────────────────────
-  const { data: pricingRow, error: pricingError } = await supabase
+  const { data: pricingRow } = await supabase
     .from("user_pricing_settings")
     .select("tax_rate, target_margin")
     .eq("user_id", user.id)
     .maybeSingle()
 
-  console.log("[price/page] user_pricing_settings:", pricingRow, pricingError?.message ?? "ok")
-
   const taxRate = typeof pricingRow?.tax_rate === "number" ? pricingRow.tax_rate : 0
   const targetMargin =
     typeof pricingRow?.target_margin === "number" ? pricingRow.target_margin : 0
 
-  // ── Build line items ──────────────────────────────────────────────────────
-  const lineItems = cartItems.map((item) => ({
-    flowerId: item.flowerId,
-    flowerName: item.flowerName,
-    stems: item.stems,
-    costPerStem: costMap.get(item.flowerId) ?? null,
-    targetMargin,
-    sourceLocation: item.sourceLocation,
-  }))
+  // ── Supplier defaults (preferred supplier per flower) ─────────────────────
+  const preferredSupplierMap = new Map<string, string>()
+  if (flowerIds.length > 0) {
+    const { data: defaults } = await supabase
+      .from("flower_supplier_defaults")
+      .select("flower_id, supplier_id")
+      .eq("user_id", user.id)
+      .eq("is_preferred", true)
+      .in("flower_id", flowerIds)
 
-  // ── Deliverables summary ──────────────────────────────────────────────────
-  const { data: deliverableRows } = await supabase
-    .from("event_deliverables")
-    .select("quantity, deliverable_type:deliverable_types(display_name)")
-    .eq("event_id", id)
+    for (const d of defaults ?? []) {
+      preferredSupplierMap.set(d.flower_id as string, d.supplier_id as string)
+    }
+  }
 
-  const deliverablesSummary = (deliverableRows ?? [])
-    .filter((r) => (r.quantity as number) > 0)
-    .map((r) => {
-      const raw = r.deliverable_type as unknown
-      const dt = (Array.isArray(raw) ? raw[0] : raw) as { display_name: string } | null
-      return `${r.quantity} ${dt?.display_name ?? ""}`
-    })
-    .filter(Boolean)
-    .join(", ")
-
-  // ── V2: Suppliers ─────────────────────────────────────────────────────────
+  // ── Suppliers ─────────────────────────────────────────────────────────────
   const { data: supplierRows } = await supabase
     .from("suppliers")
     .select("id, name, source_location")
@@ -120,8 +193,9 @@ export default async function FlowPricePage({ params }: Props) {
     source_location: string
   }[]
 
-  // ── V2: Most recent supplier prices per flower ────────────────────────────
-  const flowerIds = cartItems.map((c) => c.flowerId)
+  const supplierNameMap = new Map(suppliers.map((s) => [s.id, s.name]))
+
+  // ── Most recent supplier prices per flower ────────────────────────────────
   const recentSupplierPrices: Record<
     string,
     { supplier_id: string; price_per_stem_cents: number; recorded_at: string }[]
@@ -146,7 +220,35 @@ export default async function FlowPricePage({ params }: Props) {
     }
   }
 
-  // ── Server action: log supplier price on BOM approval ─────────────────────
+  // If no preferred supplier, fall back to most recent price entry supplier
+  for (const item of aggregatedItems) {
+    if (!preferredSupplierMap.has(item.flowerId)) {
+      const prices = recentSupplierPrices[item.flowerId]
+      if (prices && prices.length > 0) {
+        preferredSupplierMap.set(item.flowerId, prices[0].supplier_id)
+      }
+    }
+  }
+
+  // ── Build line items ──────────────────────────────────────────────────────
+  const lineItems = aggregatedItems.map((item) => {
+    const stemsPerBunch = stemsPerBunchMap.get(item.flowerId) ?? 10
+    const prefSupplierId = preferredSupplierMap.get(item.flowerId) ?? null
+    return {
+      flowerId: item.flowerId,
+      flowerName: item.flowerName,
+      stems: item.stems,
+      costPerStem: costMap.get(item.flowerId) ?? null,
+      targetMargin,
+      sourceLocation: item.sourceLocation,
+      stemsPerBunch,
+      bunchesNeeded: Math.ceil(item.stems / stemsPerBunch),
+      preferredSupplierId: prefSupplierId,
+      preferredSupplierName: prefSupplierId ? supplierNameMap.get(prefSupplierId) ?? null : null,
+    }
+  })
+
+  // ── Server action: log supplier price ─────────────────────────────────────
   async function logSupplierPriceAction(
     flowerId: string,
     supplierId: string,
@@ -154,6 +256,16 @@ export default async function FlowPricePage({ params }: Props) {
   ) {
     "use server"
     await logSupplierPrice(flowerId, supplierId, pricePerStemCents, id)
+  }
+
+  // ── Server action: record bom_generated timestamp ─────────────────────────
+  async function recordBomTimestamp() {
+    "use server"
+    const sb = await createSupabaseServer()
+    await sb.from("event_timestamps").upsert(
+      { event_id: id, step: "bom_generated" },
+      { onConflict: "event_id,step" }
+    )
   }
 
   // ── Existing quotes ───────────────────────────────────────────────────────
@@ -183,6 +295,7 @@ export default async function FlowPricePage({ params }: Props) {
       suppliers={suppliers}
       recentSupplierPrices={recentSupplierPrices}
       logSupplierPriceAction={logSupplierPriceAction}
+      recordBomTimestamp={recordBomTimestamp}
     />
   )
 }

@@ -76,7 +76,7 @@ function VibeTagPicker({
         className={`text-xs font-body px-3 py-1 rounded-md transition ${
           saved
             ? "bg-green-100 text-green-700 border border-green-200"
-            : "bg-charcoal text-bone hover:bg-charcoal/80"
+            : "bg-olive text-bone hover:bg-olive/80"
         } disabled:opacity-50`}
       >
         {isPending ? "…" : saved ? "Saved" : "Save Tags"}
@@ -162,7 +162,7 @@ function AddPhotoForm() {
         <button
           type="submit"
           disabled={isPending}
-          className="text-sm font-body bg-charcoal text-bone px-4 py-1.5 rounded-md hover:bg-charcoal/80 transition disabled:opacity-50"
+          className="text-sm font-body bg-olive text-bone px-4 py-1.5 rounded-md hover:bg-olive/80 transition disabled:opacity-50"
         >
           {isPending ? "Adding…" : "Add Photo"}
         </button>

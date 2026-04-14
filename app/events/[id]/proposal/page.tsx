@@ -11,7 +11,7 @@ interface Props {
   params: Promise<{ id: string }>
 }
 
-export default async function FlowProposalPage({ params }: Props) {
+export default async function ProposalPage({ params }: Props) {
   const { id } = await params
   const supabase = await createSupabaseServer()
 
@@ -59,13 +59,15 @@ export default async function FlowProposalPage({ params }: Props) {
   if (!activeQuote) {
     return (
       <div className="max-w-xl">
-        <h1 className="text-xl font-bold text-gray-900 mb-2">Step 4 — Proposal</h1>
-        <p className="text-sm text-gray-500 mb-6">No active quote found.</p>
+        <h1 className="text-2xl font-display italic text-charcoal mb-2">Proposal</h1>
+        <p className="text-sm font-body italic text-brown-mid mb-6">
+          No active quote found. Save a quote in Price &amp; BOM first.
+        </p>
         <Link
-          href={`/events/${id}/flow/price`}
-          className="text-sm text-green-700 hover:underline"
+          href={`/events/${id}/bom`}
+          className="text-xs tracking-widest uppercase font-body text-brown-muted hover:text-charcoal transition"
         >
-          ← Go back to Price step
+          ← Back to Price &amp; BOM
         </Link>
       </div>
     )
@@ -99,8 +101,8 @@ export default async function FlowProposalPage({ params }: Props) {
     <div className="max-w-3xl">
       <div className="flex items-start justify-between mb-8">
         <div>
-          <h1 className="text-xl font-bold text-gray-900 mb-1">Step 4 — Proposal</h1>
-          <p className="text-sm text-gray-500">
+          <h1 className="text-2xl font-display italic text-charcoal mb-1">Proposal</h1>
+          <p className="text-sm font-body italic text-brown-mid">
             Edit and save your client proposal for quote v{activeQuote.version}.
           </p>
         </div>
@@ -121,16 +123,10 @@ export default async function FlowProposalPage({ params }: Props) {
 
       <div className="flex items-center justify-between mt-8">
         <Link
-          href={`/events/${id}/flow/price`}
-          className="text-sm text-gray-500 hover:text-gray-800 transition"
+          href={`/events/${id}/bom`}
+          className="text-xs tracking-widest uppercase font-body text-brown-muted hover:text-charcoal transition"
         >
-          ← Back
-        </Link>
-        <Link
-          href={`/events/${id}/flow/export`}
-          className="bg-green-600 hover:bg-green-700 text-white text-sm font-semibold px-5 py-2 rounded-md transition"
-        >
-          Next: Export →
+          ← Price &amp; BOM
         </Link>
       </div>
     </div>

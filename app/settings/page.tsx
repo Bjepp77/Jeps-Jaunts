@@ -1,13 +1,8 @@
 import { redirect } from "next/navigation"
 import Link from "next/link"
 import { createSupabaseServer } from "@/src/lib/supabase-server"
-import { RegionSeasonalityUpload } from "@/src/components/RegionSeasonalityUpload"
-import { importSeasonalityCSV } from "@/src/lib/import-seasonality-action"
-import type { ImportRowError } from "@/src/lib/import-seasonality-action"
 import { AvailabilityPanel } from "@/src/components/AvailabilityPanel"
 import { parseWholesalerAction, confirmWholesalerAction } from "@/src/lib/wholesaler/parseWholesalerAction"
-import { BunchSizesTable } from "@/src/components/BunchSizesTable"
-import { saveBunchOverride } from "@/src/lib/save-bunch-override-action"
 import { PricingSettingsForm } from "@/src/components/PricingSettingsForm"
 import { savePricingSettings } from "@/src/lib/save-pricing-settings-action"
 import { FlowerCostsTable } from "@/src/components/FlowerCostsTable"
@@ -25,39 +20,6 @@ export default async function SettingsPage() {
   } = await supabase.auth.getUser()
 
   if (!user) redirect("/login")
-
-  // Utah region
-  const { data: region } = await supabase
-    .from("regions")
-    .select("id, name")
-    .eq("slug", "utah")
-    .single()
-
-  const { data: lastImport } = region
-    ? await supabase
-        .from("region_imports")
-        .select("filename, uploaded_at, row_count, errors_json")
-        .eq("region_id", region.id)
-        .order("uploaded_at", { ascending: false })
-        .limit(1)
-        .maybeSingle()
-    : { data: null }
-
-  const { count: overrideCount } = region
-    ? await supabase
-        .from("region_flower_seasonality")
-        .select("*", { count: "exact", head: true })
-        .eq("region_id", region.id)
-    : { count: 0 }
-
-  const lastImportSafe = lastImport
-    ? {
-        filename: lastImport.filename as string,
-        uploaded_at: lastImport.uploaded_at as string,
-        row_count: lastImport.row_count as number,
-        errors: (lastImport.errors_json ?? []) as ImportRowError[],
-      }
-    : null
 
   // Latest wholesaler paste
   const { data: activePaste } = await supabase
@@ -85,24 +47,6 @@ export default async function SettingsPage() {
   const catalog = (allFlowers ?? []).map((f) => ({
     id: f.id as string,
     common_name: f.common_name as string,
-  }))
-
-  // Bunch sizes
-  const { data: userPrefs } = await supabase
-    .from("user_flower_prefs")
-    .select("flower_id, stems_per_bunch_override")
-    .eq("user_id", user.id)
-
-  const prefMap = new Map(
-    (userPrefs ?? []).map((p) => [p.flower_id as string, p.stems_per_bunch_override as number])
-  )
-
-  const bunchFlowers = (allFlowers ?? []).map((f) => ({
-    id: f.id as string,
-    common_name: f.common_name as string,
-    category: f.category as string,
-    stems_per_bunch_default: (f.stems_per_bunch_default as number) ?? 10,
-    stems_per_bunch_override: prefMap.get(f.id as string) ?? null,
   }))
 
   // Pricing settings
@@ -293,26 +237,6 @@ export default async function SettingsPage() {
         </SettingsSection>
 
         <SettingsSection
-          eyebrow="Ordering"
-          title="Bunch Sizes"
-          description="Override how many stems are in a bunch for any flower. The export uses these values to calculate bunches to order."
-        >
-          <BunchSizesTable flowers={bunchFlowers} saveAction={saveBunchOverride} />
-        </SettingsSection>
-
-        <SettingsSection
-          eyebrow="Seasonality"
-          title="Utah Seasonality"
-          description="Upload a CSV to set Utah-specific in-season and shoulder months for any flower. Region data takes priority over global defaults for all events."
-        >
-          <RegionSeasonalityUpload
-            importAction={importSeasonalityCSV}
-            lastImport={lastImportSafe}
-            overrideCount={overrideCount ?? 0}
-          />
-        </SettingsSection>
-
-        <SettingsSection
           eyebrow="AI"
           title="Writing Style"
           description="Fauna learns how you write from the edits you make to AI-generated proposals. The more events you complete, the more it sounds like you."
@@ -356,14 +280,6 @@ export default async function SettingsPage() {
           <p className="text-xs font-body italic text-brown-muted mt-3">
             Your portal. Your data. Your business.
           </p>
-          <div className="mt-4 pt-4 border-t border-hairline">
-            <Link
-              href="/contribute"
-              className="inline-block text-sm font-body text-green-700 hover:underline"
-            >
-              Help improve Fauna&apos;s flower data →
-            </Link>
-          </div>
         </SettingsSection>
 
       </div>

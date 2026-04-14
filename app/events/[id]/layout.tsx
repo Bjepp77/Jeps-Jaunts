@@ -8,7 +8,7 @@ interface Props {
   params: Promise<{ id: string }>
 }
 
-export default async function EventFlowLayout({ children, params }: Props) {
+export default async function EventLayout({ children, params }: Props) {
   const { id } = await params
   const supabase = await createSupabaseServer()
 
@@ -25,9 +25,10 @@ export default async function EventFlowLayout({ children, params }: Props) {
   if (!event) redirect("/events")
 
   const steps = [
-    { key: "price",    label: "Price",    href: `/events/${id}/flow/price` },
-    { key: "proposal", label: "Proposal", href: `/events/${id}/flow/proposal` },
-    { key: "export",   label: "Export",   href: `/events/${id}/flow/export` },
+    { key: "review",   label: "Review",      href: `/events/${id}` },
+    { key: "recipes",  label: "Recipes",     href: `/events/${id}/recipes` },
+    { key: "bom",      label: "Price & BOM", href: `/events/${id}/bom` },
+    { key: "proposal", label: "Proposal",    href: `/events/${id}/proposal` },
   ]
 
   const eventDate = new Date(event.event_date + "T00:00:00").toLocaleDateString("en-US", {
@@ -42,14 +43,14 @@ export default async function EventFlowLayout({ children, params }: Props) {
       <div className="bg-section border-b border-hairline sticky top-12 z-10">
         <div className="max-w-6xl mx-auto px-6 py-3 flex items-center gap-4">
           <Link
-            href={`/events/${id}`}
+            href="/events"
             className="text-xs tracking-widest uppercase font-body text-brown-muted hover:text-charcoal transition shrink-0"
           >
-            ← {event.name as string}
+            ← Events
           </Link>
           <span className="text-hairline select-none">|</span>
           <span className="text-xs font-body italic text-brown-muted shrink-0 hidden sm:block">
-            {eventDate}
+            {event.name as string} — {eventDate}
           </span>
           <div className="ml-auto">
             <EventFlowStepper steps={steps} />

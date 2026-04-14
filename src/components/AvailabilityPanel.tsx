@@ -264,11 +264,6 @@ export function AvailabilityPanel({ parseAction, confirmAction, catalog, lastPas
           >
             Paste new availability
           </button>
-          {unmatched > 0 && (
-            <a href="/contribute" className="text-sm text-green-700 hover:underline">
-              Submit {unmatched} unmatched item{unmatched !== 1 ? "s" : ""} to improve Fauna →
-            </a>
-          )}
         </div>
       </div>
     )

@@ -60,7 +60,7 @@ export function CreateEventForm({ createAction }: Props) {
       </div>
       <button
         type="submit"
-        className="bg-charcoal hover:bg-charcoal/80 text-bone text-lg tracking-widest uppercase font-body px-8 py-4 rounded-md whitespace-nowrap transition"
+        className="bg-olive hover:bg-olive/80 text-bone text-lg tracking-widest uppercase font-body px-8 py-4 rounded-md whitespace-nowrap transition"
       >
         Create
       </button>

@@ -36,6 +36,11 @@ export async function saveInquiryAction(
   const event_type  = (formData.get("event_type") as string) || "wedding"
   const notes       = (formData.get("notes") as string)?.trim() || null
 
+  const guest_count_raw = formData.get("guest_count") as string
+  const guest_count     = guest_count_raw ? parseInt(guest_count_raw, 10) || null : null
+  const color_palette   = (formData.get("color_palette") as string)?.trim() || null
+  const color_palette_custom = (formData.get("color_palette_custom") as string)?.trim() || null
+
   if (!client_name || !email || !event_date) {
     return { success: false, error: "Name, email, and event date are required." }
   }
@@ -64,6 +69,9 @@ export async function saveInquiryAction(
       event_type,
       deliverables_json: deliverables,
       notes,
+      guest_count,
+      color_palette,
+      color_palette_custom,
       status: "new",
     })
     .select("id")
@@ -77,12 +85,14 @@ export async function saveInquiryAction(
   // Use admin client for florist-side writes (portal runs under anon role, no auth session).
   // Requires SUPABASE_SERVICE_ROLE_KEY in .env.local — gracefully skipped if missing.
   try {
-    const admin = createSupabaseAdmin()
+    const eventName = event_type === "wedding"
+      ? `${client_name} Wedding`
+      : `${client_name} Event`
 
     // Auto-create a draft event for the florist
     const { data: createdEvent } = await admin.from("events").insert({
       user_id: floristId,
-      name: `${client_name} — ${new Date(event_date + "T00:00:00").toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}`,
+      name: eventName,
       event_date,
       inquiry_id: inquiry.id,
       lead_status: "new",
@@ -91,54 +101,47 @@ export async function saveInquiryAction(
       client_phone: phone,
       venue,
       budget_cents,
+      guest_count,
+      vibe_tags_json: [],
     }).select("id").single()
 
-    // Auto-populate event_deliverables from client's quantities
-    if (createdEvent && deliverables.length > 0) {
-      const { data: dtRows } = await admin
-        .from("deliverable_types")
-        .select("id, name")
-        .in("name", deliverables.map((d) => d.type))
+    if (createdEvent) {
+      // Auto-populate event_deliverables from client's quantities
+      if (deliverables.length > 0) {
+        const { data: dtRows } = await admin
+          .from("deliverable_types")
+          .select("id, name")
+          .in("name", deliverables.map((d) => d.type))
 
-      if (dtRows && dtRows.length > 0) {
-        const nameToId = new Map(dtRows.map((r) => [r.name as string, r.id as string]))
-        const deliverableRows = deliverables
-          .map((d) => ({
-            event_id: createdEvent.id,
-            deliverable_type_id: nameToId.get(d.type),
-            quantity: d.qty,
-          }))
-          .filter((r) => r.deliverable_type_id != null)
+        if (dtRows && dtRows.length > 0) {
+          const nameToId = new Map(dtRows.map((r) => [r.name as string, r.id as string]))
+          const deliverableRows = deliverables
+            .map((d) => ({
+              event_id: createdEvent.id,
+              deliverable_type_id: nameToId.get(d.type),
+              quantity: d.qty,
+            }))
+            .filter((r) => r.deliverable_type_id != null)
 
-        if (deliverableRows.length > 0) {
-          await admin.from("event_deliverables").insert(deliverableRows)
+          if (deliverableRows.length > 0) {
+            await admin.from("event_deliverables").insert(deliverableRows)
+          }
         }
       }
+
+      // Record intake_received timestamp for Hours Saved tracking
+      await admin.from("event_timestamps").insert({
+        event_id: createdEvent.id,
+        step: "intake_received",
+      })
     }
   } catch (err) {
     console.error("[saveInquiryAction] admin write failed (SUPABASE_SERVICE_ROLE_KEY set?):", err)
     // Inquiry was saved — florist-side event creation failed silently
   }
 
-  // Collect up to 3 inspiration photo URLs (optional)
-  const photoUrls = [
-    formData.get("inspiration_photo_1"),
-    formData.get("inspiration_photo_2"),
-    formData.get("inspiration_photo_3"),
-  ]
-    .map((v) => (typeof v === "string" ? v.trim() : ""))
-    .filter((v) => v.length > 0 && v.startsWith("http"))
-
-  if (photoUrls.length > 0) {
-    await admin.from("inquiry_photos").insert(
-      photoUrls.map((url) => ({
-        inquiry_id: inquiry.id,
-        storage_path: url,
-      }))
-    )
-  }
-
   revalidatePath("/events")
 
-  return { success: true, inquiryId: inquiry.id, hasPhotos: photoUrls.length > 0 }
+  // Photos are uploaded client-side to Supabase Storage after this action returns
+  return { success: true, inquiryId: inquiry.id, hasPhotos: false }
 }

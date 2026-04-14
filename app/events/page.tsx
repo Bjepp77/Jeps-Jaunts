@@ -5,6 +5,9 @@ import { createSupabaseServer } from "@/src/lib/supabase-server"
 import { DeleteEventButton } from "@/src/components/DeleteEventButton"
 import { CreateEventForm } from "@/src/components/CreateEventForm"
 import { LeadStatusDropdown } from "@/src/components/LeadStatusDropdown"
+import { HoursSavedDashboard } from "@/src/components/HoursSavedDashboard"
+import { calculateSavings } from "@/src/lib/hours-saved"
+import type { EventTimestamp } from "@/src/lib/hours-saved"
 
 const LEAD_STATUS_LABELS: Record<string, string> = {
   new:           "New Inquiry",
@@ -27,6 +30,13 @@ export default async function EventsPage() {
     .from("events")
     .select("id, name, event_date, lead_status, client_name, client_email, venue, budget_cents, vibe_tags_json")
     .order("event_date", { ascending: true })
+
+  // ── Hours Saved data ────────────────────────────────────────────────────
+  const { data: timestampRows } = await supabase
+    .from("event_timestamps")
+    .select("event_id, step, occurred_at")
+
+  const savings = calculateSavings((timestampRows ?? []) as EventTimestamp[])
 
   async function createEvent(formData: FormData) {
     "use server"
@@ -128,6 +138,9 @@ export default async function EventsPage() {
           )}
         </div>
 
+        {/* Hours saved dashboard */}
+        <HoursSavedDashboard savings={savings} />
+
         {/* Create event */}
         <div className="bg-section border border-hairline rounded-xl shadow-paper p-12 mb-10">
           <p className="text-4xl tracking-[0.15em] uppercase font-body text-brown-muted mb-2">
@@ -148,9 +161,15 @@ export default async function EventsPage() {
           </p>
 
           {!events?.length ? (
-            <p className="text-xl font-body italic text-brown-muted">
-              No events yet. Create one above.
-            </p>
+            <div className="bg-section border border-hairline rounded-xl shadow-paper px-8 py-12 text-center max-w-md mx-auto">
+              <p className="text-3xl mb-4" aria-hidden="true">&#10047;</p>
+              <h3 className="text-lg font-display italic text-charcoal mb-2">
+                No events yet
+              </h3>
+              <p className="text-sm font-body italic text-brown-muted leading-relaxed">
+                Create your first event above to start building recipes, pricing flowers, and generating proposals.
+              </p>
+            </div>
           ) : (
             <ul className="space-y-2">
               {events.map((event) => {

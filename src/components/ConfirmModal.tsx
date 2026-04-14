@@ -33,7 +33,7 @@ export function ConfirmModal({
           </button>
           <button
             onClick={onConfirm}
-            className="text-xs tracking-widest uppercase font-body bg-charcoal hover:bg-charcoal/80 text-bone px-4 py-2 rounded-md transition"
+            className="text-xs tracking-widest uppercase font-body bg-olive hover:bg-olive/80 text-bone px-4 py-2 rounded-md transition"
           >
             {confirmLabel}
           </button>
