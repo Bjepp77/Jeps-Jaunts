@@ -6,6 +6,7 @@ import { DeliverablePanel } from "./DeliverablePanel"
 import { FlowerBrowserPanel } from "./FlowerBrowserPanel"
 import { RecipeCard } from "./RecipeCard"
 import { saveRecipeItems } from "@/src/lib/recipe-actions"
+import { addEventDeliverable } from "@/src/lib/add-event-deliverable-action"
 import type { Flower, Category } from "@/src/types/database"
 import type { AvailabilityOverride } from "@/src/lib/seasonality"
 import type { Deliverable } from "./DeliverablePanel"
@@ -67,6 +68,7 @@ export function RecipeBuilder({
   regionId,
 }: Props) {
   const router = useRouter()
+  const [deliverableList, setDeliverableList] = useState<Deliverable[]>(deliverables)
   const [activeDeliverable, setActiveDeliverable] = useState(
     deliverables[0]?.type ?? ""
   )
@@ -81,17 +83,17 @@ export function RecipeBuilder({
 
   const activeRecipe = recipes[activeDeliverable] ?? []
   const activeFlowerIds = activeRecipe.map((r) => r.flower_id)
-  const activeDeliverableData = deliverables.find(
+  const activeDeliverableData = deliverableList.find(
     (d) => d.type === activeDeliverable
   )
   const isLastDeliverable =
-    deliverables.findIndex((d) => d.type === activeDeliverable) ===
-    deliverables.length - 1
+    deliverableList.findIndex((d) => d.type === activeDeliverable) ===
+    deliverableList.length - 1
 
   // Running totals across all deliverables
   const runningTotals = useMemo(() => {
     const totals = { focal: 0, filler: 0, greenery: 0, accent: 0, total: 0 }
-    for (const del of deliverables) {
+    for (const del of deliverableList) {
       const items = recipes[del.type] ?? []
       for (const item of items) {
         const cat = item.flower.category as Category
@@ -103,7 +105,7 @@ export function RecipeBuilder({
       }
     }
     return totals
-  }, [recipes, deliverables])
+  }, [recipes, deliverableList])
 
   // ── Handlers ─────────────────────────────────────────────────────────────
 
@@ -129,11 +131,11 @@ export function RecipeBuilder({
       setSaved(false)
       // On mobile: stay on Browse tab and show toast
       const deliverableName =
-        deliverables.find((d) => d.type === activeDeliverable)?.display_name ??
+        deliverableList.find((d) => d.type === activeDeliverable)?.display_name ??
         activeDeliverable
       toast.show(`Added ${flower.common_name} to ${deliverableName}`)
     },
-    [activeDeliverable, deliverables, toast]
+    [activeDeliverable, deliverableList, toast]
   )
 
   const handleUpdateStems = useCallback(
@@ -174,6 +176,17 @@ export function RecipeBuilder({
     })
   }
 
+  async function handleAddDeliverable(typeName: string, quantity: number) {
+    const result = await addEventDeliverable(eventId, typeName, quantity)
+    if (result.ok) {
+      setDeliverableList((prev) => [
+        ...prev,
+        { type: result.typeName, display_name: result.displayName, quantity },
+      ])
+      setActiveDeliverable(result.typeName)
+    }
+  }
+
   function handleNext() {
     // Save current, then advance
     startTransition(async () => {
@@ -183,11 +196,11 @@ export function RecipeBuilder({
       }))
       await saveRecipeItems(eventId, activeDeliverable, items)
 
-      const idx = deliverables.findIndex(
+      const idx = deliverableList.findIndex(
         (d) => d.type === activeDeliverable
       )
-      if (idx < deliverables.length - 1) {
-        setActiveDeliverable(deliverables[idx + 1].type)
+      if (idx < deliverableList.length - 1) {
+        setActiveDeliverable(deliverableList[idx + 1].type)
         setSaved(false)
         setMobileTab("browse")
       } else {
@@ -201,10 +214,11 @@ export function RecipeBuilder({
 
   const deliverablePanel = (
     <DeliverablePanel
-      deliverables={deliverables}
+      deliverables={deliverableList}
       activeType={activeDeliverable}
       onSelect={handleSelectDeliverable}
       runningTotals={runningTotals}
+      onAdd={handleAddDeliverable}
     />
   )
 

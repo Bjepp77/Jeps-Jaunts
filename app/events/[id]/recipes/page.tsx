@@ -133,16 +133,25 @@ export default async function RecipesPage({ params }: Props) {
     <div>
       {/* Header */}
       <div className="mb-8">
-        <p className="text-xs tracking-widest uppercase font-body text-brown-muted mb-2">
-          {event.name}
-        </p>
-        <h1 className="text-3xl font-display italic text-charcoal">
-          Recipe Builder
-        </h1>
-        <p className="text-sm font-body italic text-brown-mid mt-2">
-          Select a deliverable, browse flowers, and build your stem recipes.
-          Data saves per deliverable.
-        </p>
+        <div className="flex items-start justify-between gap-4 flex-wrap">
+          <div>
+            <p className="text-xs tracking-widest uppercase font-body text-brown-muted mb-2">
+              {event.name}
+            </p>
+            <h1 className="text-3xl font-display italic text-charcoal">
+              Recipe Builder
+            </h1>
+            <p className="text-sm font-body italic text-brown-mid mt-2">
+              Select a deliverable, browse flowers, and build your stem recipes.
+            </p>
+          </div>
+          <Link
+            href={`/events/${id}/bom`}
+            className="shrink-0 text-xs tracking-widest uppercase font-body bg-olive hover:bg-olive/80 text-bone px-5 py-2.5 rounded-md transition"
+          >
+            Price &amp; BOM &rarr;
+          </Link>
+        </div>
       </div>
 
       {/* Recipe Builder */}
@@ -155,22 +164,6 @@ export default async function RecipesPage({ params }: Props) {
         overrides={overrides}
         regionId={regionId}
       />
-
-      {/* Navigation */}
-      <div className="mt-8 flex items-center justify-between">
-        <Link
-          href={`/events/${id}`}
-          className="text-sm font-body text-brown-muted hover:text-charcoal transition"
-        >
-          &larr; Back to event
-        </Link>
-        <Link
-          href={`/events/${id}/bom`}
-          className="text-xs tracking-widest uppercase font-body bg-olive hover:bg-olive/80 text-bone px-5 py-2.5 rounded-md transition"
-        >
-          Price &amp; BOM &rarr;
-        </Link>
-      </div>
     </div>
   )
 }
