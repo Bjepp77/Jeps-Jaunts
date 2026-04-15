@@ -90,7 +90,7 @@ export async function saveInquiryAction(
       : `${client_name} Event`
 
     // Auto-create a draft event for the florist
-    const { data: createdEvent } = await admin.from("events").insert({
+    const eventRow: Record<string, unknown> = {
       user_id: floristId,
       name: eventName,
       event_date,
@@ -101,9 +101,12 @@ export async function saveInquiryAction(
       client_phone: phone,
       venue,
       budget_cents,
-      guest_count,
       vibe_tags_json: [],
-    }).select("id").single()
+    }
+    // Only include guest_count when provided — column is NOT NULL DEFAULT 10
+    if (guest_count != null) eventRow.guest_count = guest_count
+
+    const { data: createdEvent } = await admin.from("events").insert(eventRow).select("id").single()
 
     if (createdEvent) {
       // Auto-populate event_deliverables from client's quantities
