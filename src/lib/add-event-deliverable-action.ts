@@ -12,14 +12,32 @@ export async function addEventDeliverable(
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { ok: false, error: "Not authenticated" }
 
-  // Look up the deliverable_type row by name
-  const { data: dtRow } = await supabase
+  const slug = typeName.toLowerCase().replace(/\s+/g, "_").replace(/[^a-z0-9_]/g, "")
+
+  // Look up the deliverable_type row by name, or create it for custom types
+  let { data: dtRow } = await supabase
     .from("deliverable_types")
-    .select("id, display_name")
-    .eq("name", typeName)
+    .select("id, name, display_name")
+    .eq("name", slug)
     .single()
 
-  if (!dtRow) return { ok: false, error: "Unknown deliverable type" }
+  if (!dtRow) {
+    // Custom type — create a new deliverable_types row
+    const displayName = typeName
+      .replace(/_/g, " ")
+      .replace(/\b\w/g, (c) => c.toUpperCase())
+    const { data: newRow, error } = await supabase
+      .from("deliverable_types")
+      .insert({
+        name: slug,
+        display_name: displayName,
+        default_stems_by_category: { focal: 3, filler: 3, greenery: 2, accent: 1 },
+      })
+      .select("id, name, display_name")
+      .single()
+    if (error || !newRow) return { ok: false, error: "Failed to create deliverable type" }
+    dtRow = newRow
+  }
 
   await supabase
     .from("event_deliverables")
@@ -28,5 +46,5 @@ export async function addEventDeliverable(
       { onConflict: "event_id,deliverable_type_id" }
     )
 
-  return { ok: true, typeName, displayName: dtRow.display_name as string }
+  return { ok: true, typeName: dtRow.name as string, displayName: dtRow.display_name as string }
 }
