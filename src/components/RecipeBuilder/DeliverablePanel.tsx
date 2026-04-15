@@ -59,16 +59,16 @@ export function DeliverablePanel({
   const availableToAdd = ALL_DELIVERABLE_TYPES.filter((t) => !existingTypes.has(t.type))
 
   const [showAddForm, setShowAddForm] = useState(false)
-  const [selectedType, setSelectedType] = useState(availableToAdd[0]?.type ?? "")
+  const [selectedType, setSelectedType] = useState(availableToAdd[0]?.type ?? "__custom__")
   const [customName, setCustomName] = useState("")
   const [qty, setQty] = useState(1)
   const [adding, setAdding] = useState(false)
 
-  const useCustom = availableToAdd.length === 0
+  const isCustomSelected = selectedType === "__custom__"
 
   async function handleAdd() {
     if (!onAdd || qty < 1) return
-    const typeName = useCustom ? customName.trim() : selectedType
+    const typeName = isCustomSelected ? customName.trim() : selectedType
     if (!typeName) return
     setAdding(true)
     await onAdd(typeName, qty)
@@ -92,26 +92,26 @@ export function DeliverablePanel({
 
           {showAddForm && (
             <div className="mt-2 bg-section border border-hairline rounded-xl shadow-paper px-4 py-4">
-              {useCustom ? (
+              <select
+                value={selectedType}
+                onChange={(e) => setSelectedType(e.target.value)}
+                className="w-full text-sm font-body text-charcoal bg-bone border border-hairline rounded-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-sage-600"
+              >
+                {availableToAdd.map((t) => (
+                  <option key={t.type} value={t.type}>
+                    {t.display_name}
+                  </option>
+                ))}
+                <option value="__custom__">Custom…</option>
+              </select>
+              {isCustomSelected && (
                 <input
                   type="text"
                   placeholder="Deliverable name…"
                   value={customName}
                   onChange={(e) => setCustomName(e.target.value)}
-                  className="w-full text-sm font-body text-charcoal bg-bone border border-hairline rounded-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-sage-600"
+                  className="w-full mt-2 text-sm font-body text-charcoal bg-bone border border-hairline rounded-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-sage-600"
                 />
-              ) : (
-                <select
-                  value={selectedType}
-                  onChange={(e) => setSelectedType(e.target.value)}
-                  className="w-full text-sm font-body text-charcoal bg-bone border border-hairline rounded-md px-3 py-2 focus:outline-none focus:ring-1 focus:ring-sage-600"
-                >
-                  {availableToAdd.map((t) => (
-                    <option key={t.type} value={t.type}>
-                      {t.display_name}
-                    </option>
-                  ))}
-                </select>
               )}
               <div className="flex gap-2 mt-2">
                 <div className="flex items-center gap-2 flex-1">
@@ -127,7 +127,7 @@ export function DeliverablePanel({
                 </div>
                 <button
                   onClick={handleAdd}
-                  disabled={adding || (useCustom ? !customName.trim() : !selectedType)}
+                  disabled={adding || (isCustomSelected ? !customName.trim() : !selectedType)}
                   className="text-xs tracking-widest uppercase font-body bg-olive hover:bg-olive/80 disabled:opacity-50 text-bone px-5 py-2 rounded-md transition"
                 >
                   {adding ? "Adding…" : "Add"}
