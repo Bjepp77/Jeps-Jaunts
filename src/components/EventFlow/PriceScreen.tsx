@@ -530,6 +530,14 @@ export function PriceScreen({
                             </div>
 
                             {/* Supplier assignment */}
+                            {suppliers.length === 0 && (
+                              <p className="mt-2 text-xs font-body italic text-brown-muted">
+                                No suppliers yet.{" "}
+                                <Link href="/settings" className="text-charcoal underline not-italic">
+                                  Add in Settings
+                                </Link>
+                              </p>
+                            )}
                             {suppliers.length > 0 && assignSupplierAction && (
                               <div className="mt-2 flex items-center gap-2 flex-wrap">
                                 <select
