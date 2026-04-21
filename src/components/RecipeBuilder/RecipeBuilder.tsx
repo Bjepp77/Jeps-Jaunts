@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import { DeliverablePanel } from "./DeliverablePanel"
 import { FlowerBrowserPanel } from "./FlowerBrowserPanel"
 import { RecipeCard } from "./RecipeCard"
-import { saveRecipeItems } from "@/src/lib/recipe-actions"
+import { saveRecipeItems, syncRecipesToEventItems } from "@/src/lib/recipe-actions"
 import { addEventDeliverable } from "@/src/lib/add-event-deliverable-action"
 import type { Flower, Category } from "@/src/types/database"
 import type { AvailabilityOverride } from "@/src/lib/seasonality"
@@ -164,18 +164,6 @@ export function RecipeBuilder({
     [activeDeliverable]
   )
 
-  function doSave() {
-    startTransition(async () => {
-      const items = (recipes[activeDeliverable] ?? []).map((r) => ({
-        flower_id: r.flower_id,
-        stems_per_unit: r.stems_per_unit,
-      }))
-      await saveRecipeItems(eventId, activeDeliverable, items)
-      setSaved(true)
-      setTimeout(() => setSaved(false), 1500)
-    })
-  }
-
   async function handleAddDeliverable(typeName: string, quantity: number) {
     const result = await addEventDeliverable(eventId, typeName, quantity)
     if (result.ok) {
@@ -188,7 +176,7 @@ export function RecipeBuilder({
   }
 
   function handleNext() {
-    // Save current, then advance
+    // Save current, then advance (or sync to BOM on last)
     startTransition(async () => {
       const items = (recipes[activeDeliverable] ?? []).map((r) => ({
         flower_id: r.flower_id,
@@ -204,7 +192,8 @@ export function RecipeBuilder({
         setSaved(false)
         setMobileTab("browse")
       } else {
-        // Last deliverable — navigate to pricing
+        // Last deliverable — sync all recipes into event_items for BOM
+        await syncRecipesToEventItems(eventId)
         router.push(`/events/${eventId}/bom`)
       }
     })
@@ -240,7 +229,6 @@ export function RecipeBuilder({
       items={activeRecipe}
       onUpdateStems={handleUpdateStems}
       onRemove={handleRemoveFlower}
-      onSave={doSave}
       onNext={handleNext}
       isSaving={isPending}
       isLast={isLastDeliverable}

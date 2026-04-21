@@ -16,7 +16,6 @@ interface Props {
   items: RecipeFlower[]
   onUpdateStems: (flowerId: string, stems: number) => void
   onRemove: (flowerId: string) => void
-  onSave: () => void
   onNext: () => void
   isSaving: boolean
   isLast: boolean
@@ -30,7 +29,6 @@ export function RecipeCard({
   items,
   onUpdateStems,
   onRemove,
-  onSave,
   onNext,
   isSaving,
   isLast,
@@ -123,20 +121,13 @@ export function RecipeCard({
       )}
 
       {/* Actions */}
-      <div className="mt-6 pt-4 border-t border-hairline flex gap-4">
-        <button
-          onClick={onSave}
-          disabled={isSaving}
-          className="text-sm font-body px-4 py-2.5 min-h-[44px] rounded-lg border border-hairline text-charcoal hover:border-charcoal/40 transition disabled:opacity-50"
-        >
-          {isSaving ? "Saving\u2026" : "Save Draft"}
-        </button>
+      <div className="mt-6 pt-4 border-t border-hairline">
         <button
           onClick={onNext}
           disabled={isSaving}
-          className="text-sm font-body bg-olive text-bone px-4 py-2.5 min-h-[44px] rounded-lg hover:bg-olive/80 transition disabled:opacity-50 flex-1"
+          className="w-full text-sm font-body bg-olive text-bone px-4 py-2.5 min-h-[44px] rounded-lg hover:bg-olive/80 transition disabled:opacity-50"
         >
-          {isLast ? "Done" : "Next \u2192"}
+          {isSaving ? "Saving\u2026" : isLast ? "View Pricing \u2192" : "Next \u2192"}
         </button>
       </div>
     </div>
