@@ -84,7 +84,7 @@ export default async function ProposalPage({ params }: Props) {
   // Flower data for the inline AI generator
   const { data: cartItems } = await supabase
     .from("event_items")
-    .select("stems, quantity, flower:flowers(common_name, category)")
+    .select("quantity, flower:flowers(common_name, category)")
     .eq("event_id", id)
 
   const flowers = (cartItems ?? []).map((item) => {
@@ -93,7 +93,7 @@ export default async function ProposalPage({ params }: Props) {
     return {
       common_name: flower?.common_name ?? "",
       category: flower?.category ?? "",
-      stems: (item.stems as number | null) ?? (item.quantity as number),
+      stems: item.quantity as number,
     }
   })
 

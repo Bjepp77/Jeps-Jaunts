@@ -73,7 +73,7 @@ export async function applyDeliverablesToCart(formData: FormData): Promise<Apply
   // ── Fetch cart items with flower category ─────────────────────────────────
   const { data: cartItems } = await supabase
     .from("event_items")
-    .select("id, stems, flower:flowers(category)")
+    .select("id, quantity, flower:flowers(category)")
     .eq("event_id", eventId)
 
   if (!cartItems?.length) {
@@ -90,7 +90,7 @@ export async function applyDeliverablesToCart(formData: FormData): Promise<Apply
     const cat = (item.flower as unknown as { category: string } | null)?.category
     if (!cat) continue
     if (!byCategory.has(cat)) byCategory.set(cat, [])
-    byCategory.get(cat)!.push({ id: item.id as string, stems: (item.stems as number) ?? 1 })
+    byCategory.get(cat)!.push({ id: item.id as string, stems: (item.quantity as number) ?? 1 })
   }
 
   // ── Distribute and update ─────────────────────────────────────────────────
@@ -108,7 +108,7 @@ export async function applyDeliverablesToCart(formData: FormData): Promise<Apply
       if (newStems !== item.stems) {
         updatedCount++
         updates.push(
-          supabase.from("event_items").update({ stems: newStems }).eq("id", item.id).then()
+          supabase.from("event_items").update({ quantity: newStems }).eq("id", item.id).then()
         )
       }
     }
