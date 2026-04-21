@@ -3,6 +3,7 @@ import { createSupabaseServer } from "@/src/lib/supabase-server"
 import { listQuotesForEventAction } from "@/src/lib/quotes/actions/listQuotesForEventAction"
 import { PriceScreen } from "@/src/components/EventFlow/PriceScreen"
 import { logSupplierPrice } from "@/src/lib/save-supplier-action"
+import { assignFlowerSupplier } from "@/src/lib/assign-flower-supplier-action"
 
 interface Props {
   params: Promise<{ id: string }>
@@ -183,6 +184,12 @@ export default async function BomPage({ params }: Props) {
     await logSupplierPrice(flowerId, supplierId, pricePerStemCents, id)
   }
 
+  // ── Server action: assign supplier to flower ─────────────────────────────
+  async function assignSupplierAction(flowerId: string, supplierId: string) {
+    "use server"
+    await assignFlowerSupplier(flowerId, supplierId, id)
+  }
+
   // ── Server action: record bom_generated timestamp ────────────────────────
   async function recordBomTimestamp() {
     "use server"
@@ -220,6 +227,7 @@ export default async function BomPage({ params }: Props) {
       suppliers={suppliers}
       recentSupplierPrices={recentSupplierPrices}
       logSupplierPriceAction={logSupplierPriceAction}
+      assignSupplierAction={assignSupplierAction}
       recordBomTimestamp={recordBomTimestamp}
     />
   )

@@ -57,6 +57,7 @@ interface Props {
   suppliers?: Supplier[]
   recentSupplierPrices?: Record<string, SupplierPriceRecord[]>
   logSupplierPriceAction?: (flowerId: string, supplierId: string, pricePerStemCents: number) => Promise<void>
+  assignSupplierAction?: (flowerId: string, supplierId: string) => Promise<void>
   recordBomTimestamp?: () => Promise<void>
 }
 
@@ -189,6 +190,7 @@ export function PriceScreen({
   suppliers = [],
   recentSupplierPrices = {},
   logSupplierPriceAction,
+  assignSupplierAction,
   recordBomTimestamp,
 }: Props) {
   const router = useRouter()
@@ -200,6 +202,10 @@ export function PriceScreen({
   const [selectedSupplier, setSelectedSupplier] = useState<Record<string, string>>({})
   const [supplierPrice, setSupplierPrice] = useState<Record<string, string>>({})
   const [loggedPrices, setLoggedPrices] = useState<Set<string>>(new Set())
+
+  // Track supplier assignments (overrides preferredSupplierId/Name for real-time re-grouping)
+  const [supplierAssignments, setSupplierAssignments] = useState<Record<string, { id: string; name: string }>>({})
+  const [isAssigning, startAssign] = useTransition()
 
   const presentSources = Array.from(
     new Set(lineItems.map((li) => li.sourceLocation).filter(Boolean) as string[])
@@ -217,16 +223,43 @@ export function PriceScreen({
   const missingCosts = allLines.filter((l) => !l.hasCost)
   const hasCostGaps = missingCosts.length > 0
 
+  // Effective supplier per flower (local assignment takes precedence)
+  function getEffectiveSupplier(flowerId: string, originalName: string | null): string {
+    const assignment = supplierAssignments[flowerId]
+    if (assignment) return assignment.name
+    return originalName ?? "Unassigned"
+  }
+
+  function getEffectiveSupplierId(flowerId: string, originalId: string | null): string | null {
+    return supplierAssignments[flowerId]?.id ?? originalId
+  }
+
   // Group lines by supplier for wholesale view
   const supplierGroups = new Map<string, typeof lines>()
   for (const line of lines) {
-    const key = line.preferredSupplierName ?? "Unassigned"
+    const key = getEffectiveSupplier(line.flowerId, line.preferredSupplierName)
     if (!supplierGroups.has(key)) supplierGroups.set(key, [])
     supplierGroups.get(key)!.push(line)
   }
 
+  function handleAssignSupplier(flowerId: string, supplierId: string) {
+    if (!supplierId || !assignSupplierAction) return
+    const supplier = suppliers.find((s) => s.id === supplierId)
+    if (!supplier) return
+    // Optimistic local update
+    setSupplierAssignments((prev) => ({
+      ...prev,
+      [flowerId]: { id: supplier.id, name: supplier.name },
+    }))
+    // Persist in background
+    startAssign(async () => {
+      await assignSupplierAction(flowerId, supplierId)
+    })
+  }
+
   function handleLogPrice(flowerId: string, startSaveFn: typeof startSave) {
-    const sid = selectedSupplier[flowerId]
+    const originalLine = allLines.find((l) => l.flowerId === flowerId)
+    const sid = getEffectiveSupplierId(flowerId, originalLine?.preferredSupplierId ?? null)
     const priceStr = supplierPrice[flowerId]
     if (!sid || !priceStr || !logSupplierPriceAction) return
     const cents = Math.round(parseFloat(priceStr) * 100)
@@ -496,15 +529,15 @@ export function PriceScreen({
                               </p>
                             </div>
 
-                            {/* Supplier price logging */}
-                            {suppliers.length > 0 && logSupplierPriceAction && (
+                            {/* Supplier assignment */}
+                            {suppliers.length > 0 && assignSupplierAction && (
                               <div className="mt-2 flex items-center gap-2 flex-wrap">
                                 <select
-                                  value={selectedSupplier[line.flowerId] ?? ""}
-                                  onChange={(e) => setSelectedSupplier((prev) => ({ ...prev, [line.flowerId]: e.target.value }))}
-                                  className="text-xs font-body border border-hairline rounded-md px-2 py-1 bg-bone text-charcoal focus:outline-none focus:ring-1 focus:ring-green-600/40"
+                                  value={getEffectiveSupplierId(line.flowerId, line.preferredSupplierId) ?? ""}
+                                  onChange={(e) => handleAssignSupplier(line.flowerId, e.target.value)}
+                                  className="text-xs font-body border border-hairline rounded-md px-2 py-1.5 bg-bone text-charcoal focus:outline-none focus:ring-1 focus:ring-olive/40"
                                 >
-                                  <option value="">Select supplier…</option>
+                                  <option value="">Assign supplier…</option>
                                   {suppliers.map((s) => {
                                     const lastPrice = recentPrices.find((p) => p.supplier_id === s.id)
                                     return (
@@ -517,29 +550,34 @@ export function PriceScreen({
                                     )
                                   })}
                                 </select>
-                                <div className="relative">
-                                  <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs font-body text-brown-muted">$</span>
-                                  <input
-                                    type="number"
-                                    min="0"
-                                    step="0.01"
-                                    placeholder="0.00"
-                                    value={supplierPrice[line.flowerId] ?? ""}
-                                    onChange={(e) => setSupplierPrice((prev) => ({ ...prev, [line.flowerId]: e.target.value }))}
-                                    className="w-20 pl-4 pr-2 py-1 text-xs font-body border border-hairline rounded-md bg-bone text-charcoal focus:outline-none focus:ring-1 focus:ring-green-600/40"
-                                  />
-                                </div>
-                                <button
-                                  onClick={() => handleLogPrice(line.flowerId, startSave)}
-                                  disabled={!selectedSupplier[line.flowerId] || !supplierPrice[line.flowerId]}
-                                  className={`text-xs font-body px-2.5 py-1 rounded-md transition ${
-                                    justLogged
-                                      ? "bg-green-100 text-green-700 border border-green-200"
-                                      : "border border-hairline text-brown-muted hover:text-charcoal hover:border-charcoal/40"
-                                  } disabled:opacity-40`}
-                                >
-                                  {justLogged ? "Logged" : "Log price"}
-                                </button>
+                                {/* Price logging */}
+                                {logSupplierPriceAction && (
+                                  <>
+                                    <div className="relative">
+                                      <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs font-body text-brown-muted">$</span>
+                                      <input
+                                        type="number"
+                                        min="0"
+                                        step="0.01"
+                                        placeholder="0.00"
+                                        value={supplierPrice[line.flowerId] ?? ""}
+                                        onChange={(e) => setSupplierPrice((prev) => ({ ...prev, [line.flowerId]: e.target.value }))}
+                                        className="w-20 pl-4 pr-2 py-1.5 text-xs font-body border border-hairline rounded-md bg-bone text-charcoal focus:outline-none focus:ring-1 focus:ring-olive/40"
+                                      />
+                                    </div>
+                                    <button
+                                      onClick={() => handleLogPrice(line.flowerId, startSave)}
+                                      disabled={!getEffectiveSupplierId(line.flowerId, line.preferredSupplierId) || !supplierPrice[line.flowerId]}
+                                      className={`text-xs font-body px-2.5 py-1.5 rounded-md transition ${
+                                        justLogged
+                                          ? "bg-olive/10 text-olive border border-olive/30"
+                                          : "border border-hairline text-brown-muted hover:text-charcoal hover:border-charcoal/40"
+                                      } disabled:opacity-40`}
+                                    >
+                                      {justLogged ? "Logged" : "Log price"}
+                                    </button>
+                                  </>
+                                )}
                               </div>
                             )}
                           </div>
