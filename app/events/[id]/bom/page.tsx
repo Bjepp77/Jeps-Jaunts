@@ -27,7 +27,7 @@ export default async function BomPage({ params }: Props) {
   // ── Cart items with flower data ───────────────────────────────────────────
   const { data: rawItems } = await supabase
     .from("event_items")
-    .select("id, quantity, stems, flower_id, flower:flowers(id, common_name, default_source_location, stems_per_bunch_default)")
+    .select("id, quantity, flower_id, flower:flowers(id, common_name, default_source_location, stems_per_bunch_default)")
     .eq("event_id", id)
     .order("created_at")
 
@@ -65,11 +65,7 @@ export default async function BomPage({ params }: Props) {
       stems_per_bunch_default?: number
     } | null
     const stems =
-      typeof item.stems === "number" && item.stems > 0
-        ? item.stems
-        : typeof item.quantity === "number"
-        ? item.quantity
-        : 0
+      typeof item.quantity === "number" ? item.quantity : 0
     const stemsPerBunch =
       stemsPerBunchOverrides.get(item.flower_id as string) ??
       flower?.stems_per_bunch_default ??
