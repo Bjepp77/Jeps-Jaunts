@@ -4,7 +4,6 @@ import { createSupabaseServer } from "@/src/lib/supabase-server"
 import { listQuotesForEventAction } from "@/src/lib/quotes/actions/listQuotesForEventAction"
 import { resolveActiveQuote } from "@/src/lib/quotes/versioning"
 import { ProposalEditor } from "@/src/components/EventFlow/ProposalEditor"
-import { generateProposal } from "@/src/lib/generate-proposal-action"
 import type { EventQuoteDocument, QuoteFull } from "@/src/lib/quotes/types"
 
 interface Props {
@@ -146,7 +145,6 @@ export default async function ProposalPage({ params }: Props) {
         eventId={id}
         styleCount={styleCount ?? 0}
         initialDoc={proposalDoc}
-        generateAction={generateProposal}
         flowersJson={JSON.stringify(flowers)}
         deliverablesJson={JSON.stringify(deliverables)}
         quoteTotalsJson={JSON.stringify({ subtotalCents, taxCents, totalCents })}
