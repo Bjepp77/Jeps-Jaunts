@@ -223,3 +223,12 @@ body {
 .ProseMirror em { font-style: italic; }
 .ProseMirror u { text-decoration: underline; }
 .ProseMirror s { text-decoration: line-through; }
+.ProseMirror hr {
+  border: none;
+  border-top: 1px solid #C7BFB3;
+  margin: 1.5em auto;
+  width: 60%;
+}
+.ProseMirror h1 {
+  text-align: inherit;
+}

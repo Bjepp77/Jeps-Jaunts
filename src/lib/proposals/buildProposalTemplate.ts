@@ -1,18 +1,19 @@
 // Deterministic, no-API proposal template.
 // Builds a complete, editable client proposal from event + quote data.
+// Designed to print beautifully and read clearly in DOCX/PDF/Word/Google Docs.
 
 import { formatCurrency } from "@/src/lib/pricing/format"
 
 export interface TemplateClient {
   floristName: string
   clientName: string
-  eventDate: string // raw ISO (YYYY-MM-DD)
+  eventDate: string
   venue: string
 }
 
 export interface TemplateFlower {
   common_name: string
-  category: string // "focal" | "filler" | "greenery" | "accent" | string
+  category: string
   stems: number
 }
 
@@ -70,6 +71,15 @@ function escapeHtml(s: string): string {
     .replace(/"/g, "&quot;")
 }
 
+// Format today's date for "Prepared on" line
+function todayPretty(): string {
+  return new Date().toLocaleDateString("en-US", {
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  })
+}
+
 // ── HTML version (for TipTap rich text editor) ───────────────────────────────
 export function buildProposalTemplateHtml({
   client,
@@ -81,6 +91,7 @@ export function buildProposalTemplateHtml({
   const floristName = escapeHtml(client.floristName.trim() || "[Your business name]")
   const venue       = escapeHtml(client.venue.trim() || "[Venue]")
   const eventDate   = escapeHtml(prettyDate(client.eventDate))
+  const today       = escapeHtml(todayPretty())
 
   // Group flowers by category
   const byCat: Record<string, TemplateFlower[]> = {}
@@ -90,20 +101,20 @@ export function buildProposalTemplateHtml({
     byCat[cat].push(f)
   }
 
-  const flowerRows: string[] = []
+  const paletteRows: string[] = []
   for (const cat of CATEGORY_ORDER) {
     const list = byCat[cat]
     if (!list || list.length === 0) continue
     const names = Array.from(new Set(list.map((f) => f.common_name))).filter(Boolean)
     if (names.length === 0) continue
-    flowerRows.push(
-      `<p><strong>${CATEGORY_LABELS[cat]}:</strong> ${escapeHtml(joinList(names))}</p>`
+    paletteRows.push(
+      `<p><strong>${CATEGORY_LABELS[cat]}</strong> &nbsp;·&nbsp; ${escapeHtml(joinList(names))}</p>`
     )
   }
 
   const deliverableItems = deliverables
     .filter((d) => d.quantity > 0)
-    .map((d) => `<li>${d.quantity} ${escapeHtml(d.display_name)}</li>`)
+    .map((d) => `<li>${d.quantity} &nbsp;&nbsp;${escapeHtml(d.display_name)}</li>`)
     .join("")
 
   const subtotal = formatCurrency(totals.subtotalCents / 100)
@@ -111,30 +122,56 @@ export function buildProposalTemplateHtml({
   const total    = formatCurrency(totals.totalCents / 100)
 
   return `
+<h1 style="text-align:center; letter-spacing:0.18em; margin-bottom:0;">${floristName.toUpperCase()}</h1>
+<p style="text-align:center; font-style:italic; color:#6B6155; margin-top:4px;">Floral Proposal</p>
+<hr>
+
+<p style="text-align:center; line-height:1.7;">
+  <span style="text-transform:uppercase; letter-spacing:0.12em; font-size:0.8em; color:#8C8379;">Prepared for</span><br>
+  <strong>${clientName}</strong><br>
+  ${eventDate}<br>
+  <em>${venue}</em>
+</p>
+
+<p style="text-align:center; color:#8C8379; font-size:0.85em; font-style:italic;">Prepared on ${today}</p>
+
+<hr>
+
 <p>Dear ${clientName},</p>
-<p>Thank you for trusting ${floristName} with the florals for your celebration on ${eventDate} at ${venue}. Below is your custom floral proposal.</p>
+<p>Thank you for trusting <strong>${floristName}</strong> with the florals for your celebration. It is my pleasure to share the proposal below — every stem chosen with your vision in mind.</p>
+
 <h2>Arrangements</h2>
-${deliverableItems ? `<ul>${deliverableItems}</ul>` : `<p><em>(No arrangements listed yet)</em></p>`}
+${deliverableItems ? `<ul>${deliverableItems}</ul>` : `<p><em>(Arrangements to be confirmed)</em></p>`}
+
 <h2>Flower Palette</h2>
-${flowerRows.length > 0 ? flowerRows.join("") : `<p><em>(Palette to be confirmed)</em></p>`}
+${paletteRows.length > 0 ? paletteRows.join("") : `<p><em>(Palette to be confirmed)</em></p>`}
+
 <h2>Investment</h2>
-<p>Subtotal: ${subtotal}<br>Tax: ${tax}<br><strong>Total: ${total}</strong></p>
+<p style="line-height:2;">
+  Subtotal &nbsp;&nbsp;·&nbsp;&nbsp; ${subtotal}<br>
+  Tax &nbsp;&nbsp;·&nbsp;&nbsp; ${tax}<br>
+  <strong style="font-size:1.1em;">Total &nbsp;&nbsp;·&nbsp;&nbsp; ${total}</strong>
+</p>
+
 <h2>Terms</h2>
-<p>This proposal is valid for 30 days from the date sent. A 25% deposit is required to secure your date; the balance is due two weeks before the event.</p>
-<p>Please reach out with any questions or adjustments — I'd love to make this perfect for you.</p>
-<p>Warmly,<br>${floristName}</p>
+<p>This proposal is valid for 30 days from the date prepared. A 25% deposit is required to secure your date; the balance is due two weeks before the event. All florals are seasonal and subject to availability — substitutions of equal or greater value may be made at the designer's discretion.</p>
+
+<p>Please reach out with any questions or adjustments. I would love to make this perfect for you.</p>
+
+<p style="margin-top:2em;">Warmly,<br><strong>${floristName}</strong></p>
 `.trim()
 }
 
-// ── Plain text version (kept for backwards compatibility) ────────────────────
+// ── Plain text version (kept for backwards compat) ──────────────────────────
 export function buildProposalTemplate(args: BuildProposalTemplateArgs): string {
-  // Strip HTML tags from the HTML version
   return buildProposalTemplateHtml(args)
-    .replace(/<\/?(strong|em|h2|p|ul|li|br)[^>]*>/gi, "")
+    .replace(/<hr[^>]*>/gi, "\n────────────────────────────────────────\n")
+    .replace(/<\/?(strong|em|h1|h2|h3|p|ul|li|br|span)[^>]*>/gi, "")
+    .replace(/&nbsp;/g, " ")
     .replace(/&amp;/g, "&")
     .replace(/&lt;/g, "<")
     .replace(/&gt;/g, ">")
     .replace(/&quot;/g, '"')
-    .replace(/\n\s*\n/g, "\n\n")
+    .replace(/\n\s*\n\s*\n+/g, "\n\n")
     .trim()
 }

@@ -58,6 +58,7 @@ export function ProposalEditor({
   const [error, setError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
   const [exporting, setExporting] = useState(false)
+  const [exportingPdf, setExportingPdf] = useState(false)
 
   function handleField(field: keyof QuoteClientInfo, value: string) {
     setClient((prev) => ({ ...prev, [field]: value }))
@@ -132,6 +133,61 @@ export function ProposalEditor({
     }
   }
 
+  async function handleDownloadPdf() {
+    setExportingPdf(true)
+    try {
+      // Dynamic import — html2pdf depends on `window`
+      const html2pdf = (await import("html2pdf.js")).default
+
+      // Build a hidden, print-styled element so the PDF looks polished
+      const wrapper = document.createElement("div")
+      wrapper.style.cssText = `
+        padding: 56px 64px;
+        max-width: 760px;
+        font-family: Georgia, 'Times New Roman', serif;
+        font-size: 11pt;
+        line-height: 1.65;
+        color: #2D2D2D;
+        background: #FFFFFF;
+      `
+      wrapper.innerHTML = `
+        <style>
+          h1 { font-family: Georgia, serif; font-size: 22pt; font-weight: 400; letter-spacing: 0.15em; margin: 0 0 4px 0; }
+          h2 { font-family: Georgia, serif; font-size: 13pt; font-style: italic; font-weight: 400; color: #2D2D2D; margin: 24px 0 8px 0; border-bottom: 1px solid #E5DFD3; padding-bottom: 4px; }
+          h3 { font-size: 10pt; font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em; color: #5E6B5B; margin: 16px 0 6px 0; }
+          p { margin: 0 0 10px 0; }
+          ul { padding-left: 22px; margin: 6px 0 14px 0; }
+          li { margin: 4px 0; }
+          hr { border: none; border-top: 1px solid #C7BFB3; margin: 20px auto; width: 60%; }
+          strong { font-weight: 700; }
+          em { font-style: italic; }
+        </style>
+        ${body}
+      `
+      document.body.appendChild(wrapper)
+
+      const slug = client.clientName.trim().replace(/\s+/g, "-").toLowerCase() || "client"
+      await html2pdf()
+        .from(wrapper)
+        .set({
+          margin:       0,
+          filename:     `floral-proposal-${slug}.pdf`,
+          image:        { type: "jpeg", quality: 0.98 },
+          html2canvas:  { scale: 2, useCORS: true, backgroundColor: "#FFFFFF" },
+          jsPDF:        { unit: "pt", format: "letter", orientation: "portrait" },
+          pagebreak:    { mode: ["avoid-all", "css", "legacy"] },
+        })
+        .save()
+
+      document.body.removeChild(wrapper)
+    } catch (e) {
+      console.error("PDF export failed:", e)
+      setError("PDF export failed. Try again.")
+    } finally {
+      setExportingPdf(false)
+    }
+  }
+
   return (
     <div className="space-y-6">
       {/* Quick Fill */}
@@ -185,23 +241,33 @@ export function ProposalEditor({
 
       {/* Proposal body */}
       <div>
-        <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center justify-between mb-2 gap-3">
           <p className="text-xs tracking-widest uppercase font-body text-brown-muted">
             Proposal Text
           </p>
-          <div className="flex gap-2">
+          <div className="flex items-center gap-2 ml-auto">
             <button
               onClick={handleCopy}
-              className="text-xs font-body text-brown-muted hover:text-charcoal border border-hairline px-3 py-1.5 rounded-md transition"
+              className="text-xs font-body text-charcoal bg-sage-50 hover:bg-sage-100 border border-sage-200 px-3 py-1.5 rounded-md transition"
+              style={{ backgroundColor: "#EFF1ED", borderColor: "#D8DDD2" }}
             >
               Copy
             </button>
             <button
               onClick={handleDownloadDocx}
               disabled={exporting}
-              className="text-xs font-body text-charcoal bg-bone border border-hairline hover:border-charcoal/40 px-3 py-1.5 rounded-md transition disabled:opacity-50"
+              className="text-xs font-body text-charcoal hover:opacity-90 border px-3 py-1.5 rounded-md transition disabled:opacity-50"
+              style={{ backgroundColor: "#E8E4D9", borderColor: "#D1CCBC" }}
             >
               {exporting ? "Exporting…" : "Download .docx"}
+            </button>
+            <button
+              onClick={handleDownloadPdf}
+              disabled={exportingPdf}
+              className="text-xs font-body text-charcoal hover:opacity-90 border px-3 py-1.5 rounded-md transition disabled:opacity-50"
+              style={{ backgroundColor: "#F2E5D7", borderColor: "#D9C5B0" }}
+            >
+              {exportingPdf ? "Exporting…" : "Download .pdf"}
             </button>
           </div>
         </div>
