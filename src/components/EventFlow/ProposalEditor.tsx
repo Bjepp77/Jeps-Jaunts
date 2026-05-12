@@ -5,6 +5,8 @@ import type { QuoteFull } from "@/src/lib/quotes/types"
 import type { QuoteClientInfo } from "@/src/lib/pricing/generateQuote"
 import { saveProposalTextAction } from "@/src/lib/quotes/actions/saveProposalTextAction"
 import { saveProposalStyleAction } from "@/src/lib/proposals/saveProposalStyleAction"
+import { buildProposalTemplate } from "@/src/lib/proposals/buildProposalTemplate"
+import type { TemplateFlower, TemplateDeliverable, TemplateQuoteTotals } from "@/src/lib/proposals/buildProposalTemplate"
 import type { ProposalResult } from "@/src/lib/generate-proposal-action"
 
 interface EventClientInfo {
@@ -29,6 +31,7 @@ interface ProposalEditorProps {
   generateAction: (formData: FormData) => Promise<ProposalResult>
   flowersJson: string
   deliverablesJson: string
+  quoteTotalsJson?: string
   eventDate: string
   eventClientInfo?: EventClientInfo
   recordProposalTimestamp?: () => Promise<void>
@@ -42,6 +45,7 @@ export function ProposalEditor({
   generateAction,
   flowersJson,
   deliverablesJson,
+  quoteTotalsJson,
   eventDate,
   eventClientInfo,
   recordProposalTimestamp,
@@ -93,6 +97,32 @@ export function ProposalEditor({
     setGenStatus("idle")
   }
 
+  function handleFillFromTemplate() {
+    try {
+      const flowers   = JSON.parse(flowersJson)      as TemplateFlower[]
+      const delivs    = JSON.parse(deliverablesJson) as TemplateDeliverable[]
+      const totals: TemplateQuoteTotals = quoteTotalsJson
+        ? JSON.parse(quoteTotalsJson)
+        : { subtotalCents: 0, taxCents: 0, totalCents: 0 }
+
+      const text = buildProposalTemplate({
+        client: {
+          floristName: client.floristName,
+          clientName:  client.clientName,
+          eventDate:   client.eventDate,
+          venue:       client.venue,
+        },
+        flowers,
+        deliverables: delivs,
+        totals,
+      })
+      setBody(text)
+      setSaved(false)
+    } catch (e) {
+      console.error("Template generation failed:", e)
+    }
+  }
+
   function handleSave() {
     setError(null)
     startTransition(async () => {
@@ -138,6 +168,27 @@ export function ProposalEditor({
 
   return (
     <div className="space-y-6">
+      {/* Template-based fill (no API, instant) */}
+      <div className="bg-section border border-hairline rounded-xl shadow-paper px-5 py-5">
+        <div className="flex items-center justify-between gap-4 flex-wrap">
+          <div className="min-w-0">
+            <p className="text-xs tracking-widest uppercase font-body text-brown-muted mb-1">
+              Quick Fill
+            </p>
+            <p className="text-sm font-body italic text-brown-mid leading-relaxed">
+              Auto-generate a clean proposal from your event data — no AI needed.
+              {body.trim() && " Replaces current text."}
+            </p>
+          </div>
+          <button
+            onClick={handleFillFromTemplate}
+            className="shrink-0 text-xs tracking-widest uppercase font-body bg-olive hover:bg-olive/80 text-bone px-5 py-2.5 rounded-md transition"
+          >
+            Fill from template
+          </button>
+        </div>
+      </div>
+
       {/* AI Draft Generator */}
       <div className="bg-gray-50 border border-gray-200 rounded-xl p-5">
         <div className="flex items-center justify-between mb-3">

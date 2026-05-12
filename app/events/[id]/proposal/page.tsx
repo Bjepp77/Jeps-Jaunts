@@ -81,7 +81,7 @@ export default async function ProposalPage({ params }: Props) {
     .select("*", { count: "exact", head: true })
     .eq("user_id", user.id)
 
-  // Flower data for the inline AI generator
+  // Flower data for the inline AI generator + template
   const { data: cartItems } = await supabase
     .from("event_items")
     .select("quantity, flower:flowers(common_name, category)")
@@ -96,6 +96,39 @@ export default async function ProposalPage({ params }: Props) {
       stems: item.quantity as number,
     }
   })
+
+  // Deliverables for the template
+  const { data: deliverableRows } = await supabase
+    .from("event_deliverables")
+    .select("quantity, deliverable_type:deliverable_types(display_name)")
+    .eq("event_id", id)
+
+  const deliverables = (deliverableRows ?? [])
+    .filter((r) => (r.quantity as number) > 0)
+    .map((r) => {
+      const raw = r.deliverable_type as unknown
+      const dt = (Array.isArray(raw) ? raw[0] : raw) as { display_name: string } | null
+      return {
+        display_name: dt?.display_name ?? "",
+        quantity: r.quantity as number,
+      }
+    })
+    .filter((d) => d.display_name)
+
+  // Quote totals (cents)
+  const subtotalCents = activeQuote.line_items.reduce(
+    (s: number, li: { total_cents: number }) => s + li.total_cents,
+    0
+  )
+  // Tax: pull user pricing setting
+  const { data: pricingRow } = await supabase
+    .from("user_pricing_settings")
+    .select("tax_rate")
+    .eq("user_id", user.id)
+    .maybeSingle()
+  const taxRate = typeof pricingRow?.tax_rate === "number" ? pricingRow.tax_rate : 0
+  const taxCents = Math.round(subtotalCents * taxRate)
+  const totalCents = subtotalCents + taxCents
 
   return (
     <div className="max-w-3xl">
@@ -115,7 +148,8 @@ export default async function ProposalPage({ params }: Props) {
         initialDoc={proposalDoc}
         generateAction={generateProposal}
         flowersJson={JSON.stringify(flowers)}
-        deliverablesJson={JSON.stringify([])}
+        deliverablesJson={JSON.stringify(deliverables)}
+        quoteTotalsJson={JSON.stringify({ subtotalCents, taxCents, totalCents })}
         eventDate={event.event_date as string}
         eventClientInfo={eventClientInfo}
         recordProposalTimestamp={recordProposalTimestamp}
